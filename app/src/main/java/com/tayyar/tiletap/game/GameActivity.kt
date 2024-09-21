@@ -4,13 +4,39 @@ import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.*
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.tayyar.tiletap.R
+import com.tayyar.tiletap.utils.disable
+import com.tayyar.tiletap.utils.highlight
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import nl.dionsegijn.konfetti.xml.KonfettiView
+import java.util.concurrent.TimeUnit
 
 class GameActivity : AppCompatActivity() {
 
     private lateinit var gameView: GameView
-    private lateinit var img: View
+    private var celebration: KonfettiView? = null
+    val party = Party(
+        speed = 0f,
+        maxSpeed = 30f,
+        damping = 0.9f,
+        spread = 360,
+        colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xb48def),
+        emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100),
+        position = Position.Relative(0.5, 0.3)
+    )
+    private lateinit var screen: ViewGroup
+    private lateinit var starLayout: View
+
+    companion object {
+        const val SCORE_PLAYER = "SCORE_PLAYER"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +66,7 @@ class GameActivity : AppCompatActivity() {
         GameView.initialSpeed = speed.toInt()
 
         // add game view
-        val screen = (findViewById<View>(android.R.id.content) as ViewGroup).getChildAt(0) as ViewGroup
+        screen = (findViewById<View>(android.R.id.content) as ViewGroup).getChildAt(0) as ViewGroup
         gameView = GameView(this)
         gameView.layoutParams =
             ViewGroup.LayoutParams(
@@ -49,13 +75,14 @@ class GameActivity : AppCompatActivity() {
             )
         screen.addView(gameView)
 
-        // set restart button
-        img = layoutInflater.inflate(R.layout.centered_image, screen, false)
-        img.visibility = View.GONE
-        img.setOnClickListener {
-            gameView.restart()
-        }
-        screen.addView(img)
+        starLayout = View.inflate(this, R.layout.layout_star, null)
+
+        starLayout.layoutParams =
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        screen.addView(starLayout)
 
         // remove notification bar
         @Suppress("DEPRECATION")
@@ -69,15 +96,63 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
-    fun showReplayButton() {
+    fun showDialogGameOver() {
         this@GameActivity.runOnUiThread {
-            img.visibility = View.VISIBLE
+            lifecycleScope.launch {
+                delay(600)
+                val dialogGameOver = DialogGameOver()
+                dialogGameOver.show(supportFragmentManager, "")
+                val bundle = Bundle()
+                bundle.putInt(SCORE_PLAYER, gameView.score)
+                dialogGameOver.arguments = bundle
+                dialogGameOver.onClickReplay = {
+                    resetStar()
+                    gameView.restart()
+                }
+            }
         }
     }
 
-    fun hideReplayButton() {
+    private fun resetStar() {
+        starLayout.findViewById<ImageView>(R.id.star1)?.disable(this@GameActivity)
+        starLayout.findViewById<ImageView>(R.id.star2)?.disable(this@GameActivity)
+        starLayout.findViewById<ImageView>(R.id.star3)?.disable(this@GameActivity)
+        starLayout.findViewById<ImageView>(R.id.star4)?.disable(this@GameActivity)
+        starLayout.findViewById<ImageView>(R.id.star5)?.disable(this@GameActivity)
+    }
+
+    fun showCelebrate() {
         this@GameActivity.runOnUiThread {
-            img.visibility = View.GONE
+            when(gameView.score) {
+                in 20 until 40 -> {
+                    starLayout.findViewById<ImageView>(R.id.star1)?.highlight(this@GameActivity)
+                }
+
+                in 40 until 60 -> {
+                    starLayout.findViewById<ImageView>(R.id.star2)?.highlight(this@GameActivity)
+                }
+
+                in 60 until 80 -> {
+                    starLayout.findViewById<ImageView>(R.id.star3)?.highlight(this@GameActivity)
+                }
+
+                in 80 until 100 -> {
+                    starLayout.findViewById<ImageView>(R.id.star4)?.highlight(this@GameActivity)
+                }
+
+                else -> {
+                    starLayout.findViewById<ImageView>(R.id.star5)?.highlight(this@GameActivity)
+                }
+            }
+            celebration = KonfettiView(this, null, 0)
+            celebration?.setBackgroundResource(android.R.color.transparent)
+            celebration?.layoutParams =
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            celebration?.start(party)
+            screen.addView(celebration)
         }
     }
 

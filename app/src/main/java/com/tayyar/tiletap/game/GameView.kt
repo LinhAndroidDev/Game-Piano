@@ -1,7 +1,10 @@
 package com.tayyar.tiletap.game
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -14,6 +17,8 @@ import android.os.Vibrator
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.tayyar.tiletap.R
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -32,6 +37,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     private var grayPaint = Paint()
     private var redPaint = Paint()
     private var scorePaint = Paint()
+    private var backgroundBitmap: Bitmap? = null
 
     private var row = -1
     private var lastRow = -1
@@ -46,18 +52,25 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     private var touchedY = 0f
 
     private var scoreSize = 100f
-    private var backGroundColor = Color.WHITE
 
     private var started = false
 
     private var soundPool: SoundPool? = null
     private var failSound: Int? = null
     private var tileSound: Int? = null
+    private var pass20: Int? = null
     private var playingSound: Int? = null
 
     private var frameNo = 0
 
+    var score = 0
+
+    private var currentAlpha = 255
+
     init {
+
+        // Load ảnh từ resource làm background
+        backgroundBitmap = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(resources, R.drawable.bg_game_view), screenWidth, screenHeight, false)
 
         // add callback
         holder.addCallback(this)
@@ -76,20 +89,26 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
 
         // color of the tiles
         blackPaint.color = Color.BLACK
-        grayPaint.color = Color.GRAY
-        redPaint.color = Color.RED
+        grayPaint.color = ContextCompat.getColor(context, R.color.black_blur)
+        redPaint.color = ContextCompat.getColor(context, R.color.red_dark)
+        redPaint.alpha = currentAlpha
         scorePaint.color = Color.CYAN
 
         scorePaint.textSize = scoreSize
 
+        scorePaint.typeface = ResourcesCompat.getFont(context, R.font.baloo)
+
         if (music && soundPool == null) {
             soundPool = SoundPool(20, AudioManager.STREAM_MUSIC, 0)
             if (failSound == null) {
-                failSound = soundPool?.load(context, R.raw.failsound, 1)
+                failSound = soundPool?.load(context, R.raw.tiengbaoloi, 1)
             }
 
             if (tileSound == null) {
                 tileSound = soundPool?.load(context, R.raw.a, 1)
+            }
+            if(pass20 == null) {
+                pass20 = soundPool?.load(context, R.raw.pass_20, 1)
             }
         }
 
@@ -99,7 +118,6 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
     }
 
     companion object {
-        var score = 0
         val screenWidth = Resources.getSystem().displayMetrics.widthPixels
         val screenHeight = Resources.getSystem().displayMetrics.heightPixels
         var music = true
@@ -134,7 +152,6 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         if (playingSound != null) {
             soundPool?.stop(playingSound!!)
         }
-        (context as GameActivity).hideReplayButton()
         Tile.speed = initialSpeed.toDouble()
         tiles.clear()
         score = 0
@@ -170,14 +187,17 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         frameNo++
 
         // stop the game
-        if (false) {
+        if (gameOver) {
             playingSound = soundPool?.play(failSound!!, 1f, 1f, 0, 0, 1f)
             Tile.speed = 0.0
             thread.setRunning(false)
             saveIfHighScore(initialSpeed, score)
-            (context as GameActivity).showReplayButton()
+            (context as GameActivity).showDialogGameOver()
             gameOverOver = true
+            gameOver = false
         }
+
+        backgroundBitmap?.let { canvas.drawBitmap(it, 0f, 0f, Paint()) }
 
         drawLines(canvas)
 
@@ -205,17 +225,42 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
         }
         // draw red tile if pressed the wrong tile
         when (tappedWrongTile) {
-            0 -> canvas.drawRect(Rect(0, startY, screenWidth / 4, endY), redPaint)
-            1 -> canvas.drawRect(Rect(screenWidth / 4, startY, screenWidth / 2, endY), redPaint)
-            2 -> canvas.drawRect(Rect(screenWidth / 2, startY, screenWidth * 3 / 4, endY), redPaint)
-            3 -> canvas.drawRect(Rect(screenWidth * 3 / 4, startY, screenWidth, endY), redPaint)
+            0 -> {
+                canvas.drawRect(Rect(0, startY, screenWidth / 4, endY), redPaint)
+                effectBlink()
+            }
+            1 -> {
+                canvas.drawRect(Rect(screenWidth / 4, startY, screenWidth / 2, endY), redPaint)
+                effectBlink()
+            }
+            2 -> {
+                canvas.drawRect(Rect(screenWidth / 2, startY, screenWidth * 3 / 4, endY), redPaint)
+                effectBlink()
+            }
+            3 -> {
+                canvas.drawRect(Rect(screenWidth * 3 / 4, startY, screenWidth, endY), redPaint)
+                effectBlink()
+            }
         }
         drawScore(canvas)
     }
 
+    private fun effectBlink() {
+        val blinkAnimator = ValueAnimator.ofInt(0, 255).apply {
+            duration = 100 // thời gian cho một lần nhấp nháy (500ms)
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            addUpdateListener { animator ->
+                currentAlpha = animator.animatedValue as Int
+                invalidate() // vẽ lại GameView
+            }
+        }
+        blinkAnimator.start()
+    }
+
     fun drawLines(canvas: Canvas) {
-        // paint the background
-        canvas.drawColor(backGroundColor)
+//        // paint the background
+//        canvas.drawColor(backGroundColor)
 
         // alignment lines
         canvas.drawLine(
@@ -257,6 +302,11 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback 
                         tempTiles = CopyOnWriteArrayList(tiles)
                         for (tile in tempTiles) {
                             if (tile.checkTouch(touchedX, touchedY)) {
+                                score++
+                                if( score > 0 && score % 20 == 0) {
+                                    playingSound = soundPool?.play(pass20!!, 1f, 1f, 0, 0, 1f)
+                                    (context as GameActivity).showCelebrate()
+                                }
                                 playingSound = soundPool?.play(tileSound!!, 1f, 1f, 0, 0, 1f)
                                 if (Build.VERSION.SDK_INT >= 26) {
                                     vibrator?.vibrate(

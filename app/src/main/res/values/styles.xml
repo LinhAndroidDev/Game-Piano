@@ -6,4 +6,5 @@
 
     <style name="FullscreenTheme" parent="Theme.AppCompat.NoActionBar" />
 
+    <dimen name="Dialog.GameOver.Width">330dp</dimen>
 </resources>

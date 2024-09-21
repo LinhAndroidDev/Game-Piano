@@ -55,7 +55,7 @@ class Tile(blackPaint : Paint, private var pressedTileColor: Paint, private var 
     fun update(frameNo: Int) {
 
         //stop the tile if it reaches the end
-        if (false) {
+        if (gameOver) {
             tileColor = redPaint
             outOfBounds = true
             speed = -40.0
@@ -78,7 +78,6 @@ class Tile(blackPaint : Paint, private var pressedTileColor: Paint, private var 
     fun checkTouch (x: Float, y: Float) : Boolean {
         if (x > startX - screenWidth/30 && x < endX + screenWidth/30 && y < endY && y > startY && !pressed) {
             tileColor = pressedTileColor
-            GameView.score++
             pressed = true
             return pressed
         }
