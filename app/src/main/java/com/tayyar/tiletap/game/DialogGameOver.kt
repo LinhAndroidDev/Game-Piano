@@ -42,7 +42,7 @@ class DialogGameOver : DialogFragment() {
 
     private fun initView() {
         val score: Int = arguments?.getInt(GameActivity.SCORE_PLAYER) ?: 0
-        binding?.score?.text = score.toString()
+        binding?.score?.addNewValue(finalValue = score.toFloat())
 
         val stars = listOf(binding?.star1, binding?.star2, binding?.star3, binding?.star4, binding?.star5)
 
