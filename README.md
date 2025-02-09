@@ -39,7 +39,7 @@ Piano Tiles is a classic rhythm game where your goal is to tap the tiles as they
 
 ## Author
 
-This game was developed by Atilla Türkmen.
+This game was developed by Nguyen Huu Linh.
 
 ## Contributing
 
